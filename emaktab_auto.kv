@@ -1,0 +1,57 @@
+<AccountManagerPopup>:
+    BoxLayout:
+        orientation: 'vertical'
+        padding: 10
+        spacing: 10
+        
+        Label:
+            text: 'Список аккаунтов:'
+            size_hint_y: 0.1
+            font_size: '18sp'
+            bold: True
+            
+        RV:
+            id: account_list
+            viewclass: 'SelectableLabel'
+            size_hint_y: 0.7
+            
+            RecycleGridLayout:
+                cols: 1
+                default_size: None, dp(40)
+                default_size_hint: 1, None
+                size_hint_y: None
+                height: self.minimum_height
+                orientation: 'vertical'
+        
+        BoxLayout:
+            size_hint_y: 0.2
+            spacing: 10
+            
+            Button:
+                text: '🗑️ Удалить выбранный'
+                on_press: root.delete_selected()
+                background_color: 0.8, 0.2, 0.2, 1
+                
+            Button:
+                text: 'Обновить список'
+                on_press: root.load_accounts()
+                background_color: 0.2, 0.5, 0.8, 1
+                
+            Button:
+                text: 'Закрыть'
+                on_press: root.dismiss()
+                background_color: 0.5, 0.5, 0.5, 1
+
+<SelectableLabel>:
+    # Draw a background to indicate selection
+    canvas.before:
+        Color:
+            rgba: (.0, 0.9, .1, .3) if self.selected else (0, 0, 0, 1)
+        Rectangle:
+            pos: self.pos
+            size: self.size
+    text_size: None, None
+    halign: 'left'
+    valign: 'middle'
+    padding: 10, 0
+    on_touch_down: self.parent.select_with_touch(self.index, self.touch)
