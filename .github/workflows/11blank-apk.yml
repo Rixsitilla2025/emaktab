@@ -48,34 +48,28 @@ jobs:
             "build-tools;33.0.2" \
             "ndk;23.1.7779620"
 
-      - name: Patch buildozer.spec to match SDK/NDK
+      - name: Fix sdkmanager path for Buildozer
         env:
           ANDROID_SDK_ROOT: ${{ github.workspace }}/android-sdk
         run: |
-          set -e
+          mkdir -p $ANDROID_SDK_ROOT/tools/bin
+          ln -s $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager $ANDROID_SDK_ROOT/tools/bin/sdkmanager
+
+      - name: Patch buildozer.spec to use SDK 33
+        run: |
           SPEC=buildozer.spec
-          SDK="$ANDROID_SDK_ROOT"
-          NDK="$ANDROID_SDK_ROOT/ndk/23.1.7779620"
-          # Заменяем/добавляем ключи
-          # api/sdk/build_tools/ndk версии
-          grep -q '^android.api'        "$SPEC" && sed -i 's|^android.api *=.*|android.api = 33|' "$SPEC"        || echo 'android.api = 33' >> "$SPEC"
-          grep -q '^android.sdk'        "$SPEC" && sed -i 's|^android.sdk *=.*|android.sdk = 33|' "$SPEC"        || echo 'android.sdk = 33' >> "$SPEC"
-          grep -q '^android.build_tools' "$SPEC" && sed -i 's|^android.build_tools *=.*|android.build_tools = 33.0.2|' "$SPEC" || echo 'android.build_tools = 33.0.2' >> "$SPEC"
-          grep -q '^android.ndk'        "$SPEC" && sed -i 's|^android.ndk *=.*|android.ndk = 23b|' "$SPEC"        || echo 'android.ndk = 23b' >> "$SPEC"
-          # пути SDK/NDK
-          grep -q '^android.sdk_path'   "$SPEC" && sed -i "s|^android.sdk_path *=.*|android.sdk_path = ${SDK}|" "$SPEC"   || echo "android.sdk_path = ${SDK}" >> "$SPEC"
-          grep -q '^android.ndk_path'   "$SPEC" && sed -i "s|^android.ndk_path *=.*|android.ndk_path = ${NDK}|" "$SPEC"   || echo "android.ndk_path = ${NDK}" >> "$SPEC"
-          # автопринятие лицензий
-          grep -q '^android.accept_sdk_license' "$SPEC" && sed -i 's|^android.accept_sdk_license *=.*|android.accept_sdk_license = True|' "$SPEC" \
-            || echo 'android.accept_sdk_license = True' >> "$SPEC"
-          echo "=== Effective buildozer.spec ==="
-          grep -E '^(android\.api|android\.sdk_path|android\.ndk_path|android\.sdk|android\.ndk|android\.build_tools|android\.accept_sdk_license)' "$SPEC"
+          sed -i 's|^android.api *=.*|android.api = 33|' "$SPEC" || echo 'android.api = 33' >> "$SPEC"
+          sed -i 's|^android.sdk *=.*|android.sdk = 33|' "$SPEC" || echo 'android.sdk = 33' >> "$SPEC"
+          sed -i 's|^android.build_tools *=.*|android.build_tools = 33.0.2|' "$SPEC" || echo 'android.build_tools = 33.0.2' >> "$SPEC"
+          sed -i 's|^android.ndk *=.*|android.ndk = 23b|' "$SPEC" || echo 'android.ndk = 23b' >> "$SPEC"
+          sed -i 's|^android.accept_sdk_license *=.*|android.accept_sdk_license = True|' "$SPEC" || echo 'android.accept_sdk_license = True' >> "$SPEC"
+          echo "=== buildozer.spec config ==="
+          grep -E '^(android.api|android.sdk|android.build_tools|android.ndk|android.accept_sdk_license)' "$SPEC"
 
       - name: Build APK (debug)
         env:
           ANDROIDSDK: ${{ github.workspace }}/android-sdk
         run: |
-          # Чистим на всякий случай старые кеши
           rm -rf ~/.buildozer
           buildozer -v android debug
 
