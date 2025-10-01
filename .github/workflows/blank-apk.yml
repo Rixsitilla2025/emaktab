@@ -1,4 +1,4 @@
-name: Build APK
+name: Build Kivy APK
 
 on:
   push:
@@ -10,51 +10,46 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: "3.10"
 
       - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
             git zip unzip openjdk-17-jdk python3-pip \
-            libffi-dev libssl-dev \
-            libjpeg-dev zlib1g-dev \
-            libncurses5 libncurses5-dev \
-            libtinfo5
+            libffi-dev libssl-dev libjpeg-dev zlib1g-dev \
+            libncurses6 libncurses-dev libtinfo6
 
-      - name: Install Cython & Buildozer
+      - name: Install Python dependencies
         run: |
           pip install --upgrade pip
           pip install cython buildozer
 
       - name: Install Android SDK
         run: |
-          sudo mkdir -p /usr/local/android-sdk
-          export ANDROID_SDK_ROOT=/usr/local/android-sdk
+          export ANDROID_SDK_ROOT=$HOME/android-sdk
+          mkdir -p $ANDROID_SDK_ROOT/cmdline-tools
           wget https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O cmdline-tools.zip
           unzip cmdline-tools.zip
-          sudo mkdir -p /usr/local/android-sdk/cmdline-tools
-          sudo mv cmdline-tools /usr/local/android-sdk/cmdline-tools/latest
-          yes | sudo /usr/local/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses
-          sudo /usr/local/android-sdk/cmdline-tools/latest/bin/sdkmanager \
+          mv cmdline-tools $ANDROID_SDK_ROOT/cmdline-tools/latest
+          yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --licenses
+          $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager \
             "platform-tools" "platforms;android-33" "build-tools;33.0.2"
 
       - name: Build APK
         env:
-          ANDROIDSDK: /usr/local/android-sdk
-          ANDROIDNDK: /usr/local/android-sdk/ndk-bundle
+          ANDROIDSDK: $HOME/android-sdk
         run: |
-          export PATH=$ANDROIDSDK/platform-tools:$PATH
           buildozer -v android debug
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug-apk
+          name: emaktab-auto-apk
           path: bin/*.apk
