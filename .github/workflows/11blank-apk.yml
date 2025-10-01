@@ -55,6 +55,12 @@ jobs:
           mkdir -p $ANDROID_SDK_ROOT/tools/bin
           ln -s $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager $ANDROID_SDK_ROOT/tools/bin/sdkmanager
 
+      - name: Fix NDK path for Buildozer
+        env:
+          ANDROID_SDK_ROOT: ${{ github.workspace }}/android-sdk
+        run: |
+          ln -s $ANDROID_SDK_ROOT/ndk/23.1.7779620 $ANDROID_SDK_ROOT/ndk/android-ndk-r23b
+
       - name: Patch buildozer.spec to use SDK 33
         run: |
           SPEC=buildozer.spec
