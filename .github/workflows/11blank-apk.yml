@@ -10,13 +10,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: "3.10"
 
       - name: Install system dependencies
         run: |
@@ -26,17 +26,30 @@ jobs:
             libffi-dev libssl-dev libjpeg-dev zlib1g-dev \
             libncurses5 libncurses5-dev libtinfo5
 
-      - name: Install Python deps
+      - name: Install Python dependencies
         run: |
           pip install --upgrade pip
           pip install cython buildozer
 
+      - name: Install Android SDK
+        run: |
+          export ANDROID_SDK_ROOT=$HOME/android-sdk
+          mkdir -p $ANDROID_SDK_ROOT/cmdline-tools
+          wget https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O cmdline-tools.zip
+          unzip cmdline-tools.zip
+          mv cmdline-tools $ANDROID_SDK_ROOT/cmdline-tools/latest
+          yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --licenses
+          $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager \
+            "platform-tools" "platforms;android-33" "build-tools;33.0.2"
+
       - name: Build APK
+        env:
+          ANDROIDSDK: $HOME/android-sdk
         run: |
           buildozer -v android debug
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug-apk
+          name: emaktab-auto-apk
           path: bin/*.apk
