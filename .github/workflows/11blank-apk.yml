@@ -18,7 +18,7 @@ jobs:
         with:
           python-version: "3.10"
 
-      - name: Install system dependencies
+      - name: Install system dependencies (Ubuntu 24.04)
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -26,30 +26,61 @@ jobs:
             libffi-dev libssl-dev libjpeg-dev zlib1g-dev \
             libncurses6 libncurses-dev libtinfo6
 
-      - name: Install Python dependencies
+      - name: Install Python deps (Cython + Buildozer)
         run: |
-          pip install --upgrade pip
+          python -m pip install --upgrade pip
           pip install cython buildozer
 
-      - name: Install Android SDK
-        run: |
-          export ANDROID_SDK_ROOT=$HOME/android-sdk
-          mkdir -p $ANDROID_SDK_ROOT/cmdline-tools
-          wget https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O cmdline-tools.zip
-          unzip cmdline-tools.zip
-          mv cmdline-tools $ANDROID_SDK_ROOT/cmdline-tools/latest
-          yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --licenses
-          $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager \
-            "platform-tools" "platforms;android-33" "build-tools;33.0.2"
-
-      - name: Build APK
+      - name: Install Android SDK + tools
         env:
-          ANDROIDSDK: $HOME/android-sdk
+          ANDROID_SDK_ROOT: ${{ github.workspace }}/android-sdk
         run: |
+          set -e
+          export ANDROID_SDK_ROOT="${GITHUB_WORKSPACE}/android-sdk"
+          mkdir -p "$ANDROID_SDK_ROOT/cmdline-tools"
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O cmdline-tools.zip
+          unzip -q cmdline-tools.zip
+          mv cmdline-tools "$ANDROID_SDK_ROOT/cmdline-tools/latest"
+          yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses
+          "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" \
+            "platform-tools" \
+            "platforms;android-33" \
+            "build-tools;33.0.2" \
+            "ndk;23.1.7779620"
+
+      - name: Patch buildozer.spec to match SDK/NDK
+        env:
+          ANDROID_SDK_ROOT: ${{ github.workspace }}/android-sdk
+        run: |
+          set -e
+          SPEC=buildozer.spec
+          SDK="$ANDROID_SDK_ROOT"
+          NDK="$ANDROID_SDK_ROOT/ndk/23.1.7779620"
+          # Заменяем/добавляем ключи
+          # api/sdk/build_tools/ndk версии
+          grep -q '^android.api'        "$SPEC" && sed -i 's|^android.api *=.*|android.api = 33|' "$SPEC"        || echo 'android.api = 33' >> "$SPEC"
+          grep -q '^android.sdk'        "$SPEC" && sed -i 's|^android.sdk *=.*|android.sdk = 33|' "$SPEC"        || echo 'android.sdk = 33' >> "$SPEC"
+          grep -q '^android.build_tools' "$SPEC" && sed -i 's|^android.build_tools *=.*|android.build_tools = 33.0.2|' "$SPEC" || echo 'android.build_tools = 33.0.2' >> "$SPEC"
+          grep -q '^android.ndk'        "$SPEC" && sed -i 's|^android.ndk *=.*|android.ndk = 23b|' "$SPEC"        || echo 'android.ndk = 23b' >> "$SPEC"
+          # пути SDK/NDK
+          grep -q '^android.sdk_path'   "$SPEC" && sed -i "s|^android.sdk_path *=.*|android.sdk_path = ${SDK}|" "$SPEC"   || echo "android.sdk_path = ${SDK}" >> "$SPEC"
+          grep -q '^android.ndk_path'   "$SPEC" && sed -i "s|^android.ndk_path *=.*|android.ndk_path = ${NDK}|" "$SPEC"   || echo "android.ndk_path = ${NDK}" >> "$SPEC"
+          # автопринятие лицензий
+          grep -q '^android.accept_sdk_license' "$SPEC" && sed -i 's|^android.accept_sdk_license *=.*|android.accept_sdk_license = True|' "$SPEC" \
+            || echo 'android.accept_sdk_license = True' >> "$SPEC"
+          echo "=== Effective buildozer.spec ==="
+          grep -E '^(android\.api|android\.sdk_path|android\.ndk_path|android\.sdk|android\.ndk|android\.build_tools|android\.accept_sdk_license)' "$SPEC"
+
+      - name: Build APK (debug)
+        env:
+          ANDROIDSDK: ${{ github.workspace }}/android-sdk
+        run: |
+          # Чистим на всякий случай старые кеши
+          rm -rf ~/.buildozer
           buildozer -v android debug
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: emaktab-auto-apk
+          name: emaktabauto-debug-apk
           path: bin/*.apk
